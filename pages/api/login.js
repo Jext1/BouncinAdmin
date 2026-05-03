@@ -1,27 +1,39 @@
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const USER = {
   username: "BouncinLlanelliAdmin",
-  passwordHash: "$2a$10$WqJYqE9Q9nFzWz5XH9cYKuP6lZ9q7yYpQ1zZ6k7YxU6b2R9GZpX8K"
+  password: "ElioFina1921"
 };
 
 export default async function handler(req, res) {
-  const { username, password } = req.body;
+  try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
 
-  if (username !== USER.username) {
-    return res.status(401).json({ error: "Invalid login" });
+    const { username, password } = req.body || {};
+
+    if (!username || !password) {
+      return res.status(400).json({ error: "Missing username or password" });
+    }
+
+    if (
+      username !== USER.username ||
+      password !== USER.password
+    ) {
+      return res.status(401).json({ error: "Invalid login" });
+    }
+
+    const token = jwt.sign(
+      { user: username },
+      process.env.JWT_SECRET || "SECRET_KEY",
+      { expiresIn: "1d" }
+    );
+
+    return res.status(200).json({ token });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
-
-  const valid = await bcrypt.compare(password, USER.passwordHash);
-
-  if (!valid) {
-    return res.status(401).json({ error: "Invalid login" });
-  }
-
-  const token = jwt.sign({ user: username }, "SECRET_KEY", {
-    expiresIn: "1d"
-  });
-
-  res.json({ token });
 }
