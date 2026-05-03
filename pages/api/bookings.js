@@ -1,70 +1,46 @@
-import { useEffect, useState } from "react";
+export default async function handler(req, res) {
+  try {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const calendarId = process.env.CALENDAR_ID;
 
-export default function Dashboard() {
-  const [events, setEvents] = useState([]);
-  const [error, setError] = useState(null);
+    if (!apiKey || !calendarId) {
+      return res.status(500).json({
+        error: "Missing GOOGLE_API_KEY or CALENDAR_ID in Vercel env"
+      });
+    }
 
-  useEffect(() => {
-    fetch("/api/bookings")
-      .then(async (res) => {
-        const json = await res.json();
-        if (!res.ok || json.error) throw new Error(json.error);
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}`;
 
-        return json;
-      })
-      .then((data) => {
-        setEvents(data.events || []);
-      })
-      .catch((err) => setError(err.message));
-  }, []);
+    const response = await fetch(url);
 
-  if (error) {
-    return (
-      <div style={{ padding: 20, color: "red" }}>
-        <h2>Calendar error</h2>
-        <p>{error}</p>
-      </div>
-    );
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(500).json({
+        error: "Google Calendar API failed",
+        details: text
+      });
+    }
+
+    const data = await response.json();
+
+    const items = data.items || [];
+
+    const events = items.map((e) => ({
+      summary: e.summary || "No title",
+      description: e.description || "",
+      start: e.start?.dateTime || e.start?.date || null,
+      end: e.end?.dateTime || e.end?.date || null
+    }));
+
+    return res.status(200).json({
+      events,
+      count: events.length
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      error: "Server crashed",
+      message: err.message
+    });
   }
-
-  if (!events) return <p>Loading...</p>;
-
-  // 🧠 group events by day
-  const grouped = {};
-
-  events.forEach((e) => {
-    const date = new Date(e.start).toDateString();
-    if (!grouped[date]) grouped[date] = [];
-    grouped[date].push(e);
-  });
-
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>Bouncin Calendar</h1>
-
-      {Object.keys(grouped).length === 0 && (
-        <p>No bookings found</p>
-      )}
-
-      {Object.entries(grouped).map(([date, list]) => (
-        <div key={date} style={{ marginBottom: 20 }}>
-          <h3>{date}</h3>
-
-          {list.map((e, i) => (
-            <div
-              key={i}
-              style={{
-                padding: 10,
-                border: "1px solid #ccc",
-                marginBottom: 5
-              }}
-            >
-              <b>{e.summary}</b>
-              <p>{e.description}</p>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
 }
