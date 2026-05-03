@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
     if (!apiKey || !calendarId) {
       return res.status(500).json({
-        error: "Missing CALENDAR_ID or GOOGLE_API_KEY in Vercel env"
+        error: "Missing CALENDAR_ID or GOOGLE_API_KEY"
       });
     }
 
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       data = JSON.parse(text);
     } catch {
       return res.status(500).json({
-        error: "Google did not return valid JSON",
+        error: "Invalid JSON from Google",
         raw: text
       });
     }
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 📅 events
+    // 📅 format events
     const events = (data.items || []).map(e => ({
       summary: e.summary || "",
       description: e.description || "",
@@ -59,6 +59,10 @@ export default async function handler(req, res) {
       const text = (e.summary + " " + e.description).toLowerCase();
       const lines = text.split("\n");
 
+      let eventPrice = 0;
+      let eventDeposit = 0;
+
+      // 💰 detect price vs deposit
       lines.forEach(line => {
         const match = line.match(/£\s?(\d+)/);
         if (!match) return;
@@ -66,11 +70,15 @@ export default async function handler(req, res) {
         const value = parseInt(match[1]);
 
         if (line.includes("deposit")) {
-          deposits += value;
+          eventDeposit = value;
         } else {
-          total += value;
+          eventPrice = value;
         }
       });
+
+      // ➕ add totals (IMPORTANT: separate)
+      total += eventPrice;
+      deposits += eventDeposit;
 
       // 🔑 keywords
       const keywords = [
@@ -90,8 +98,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       events: filtered,
-      total,
-      deposits,
+      total,            // 💰 FULL booking value ONLY
+      deposits,         // 💵 deposits ONLY
       totalBookings: filtered.length,
       count
     });
