@@ -1,12 +1,12 @@
 export default async function handler(req, res) {
   try {
-    // 🔐 GET FROM VERCEL ENV
+    // 🔐 Vercel environment variables
     const apiKey = process.env.GOOGLE_API_KEY;
-    const calendarId = process.env.GOOGLE_CALENDAR_ID;
+    const calendarId = process.env.CALENDAR_ID;
 
     if (!apiKey || !calendarId) {
       return res.status(500).json({
-        error: "Missing environment variables"
+        error: "Missing CALENDAR_ID or GOOGLE_API_KEY in Vercel env"
       });
     }
 
@@ -19,7 +19,6 @@ export default async function handler(req, res) {
       `?key=${apiKey}&timeMin=${now.toISOString()}&timeMax=${future.toISOString()}`;
 
     const response = await fetch(url);
-
     const text = await response.text();
 
     let data;
@@ -27,7 +26,7 @@ export default async function handler(req, res) {
       data = JSON.parse(text);
     } catch {
       return res.status(500).json({
-        error: "Google did not return JSON",
+        error: "Google did not return valid JSON",
         raw: text
       });
     }
@@ -39,6 +38,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // 📅 events
     const events = (data.items || []).map(e => ({
       summary: e.summary || "",
       description: e.description || "",
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     events.forEach(e => {
       const date = new Date(e.start);
 
-      // 📅 ONLY MAY
+      // 📅 ONLY MAY (change if needed)
       if (date.getMonth() !== 4) return;
 
       const text = (e.summary + " " + e.description).toLowerCase();
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
         }
       });
 
-      // 🔑 KEYWORDS
+      // 🔑 keywords
       const keywords = [
         "castle","obstacle","candyfloss","blue","purple",
         "white","kpop","lego","building","mermaid",
