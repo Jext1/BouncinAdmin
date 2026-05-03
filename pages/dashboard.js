@@ -2,15 +2,32 @@ import { useEffect, useState } from "react";
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetch("/api/bookings")
-      .then((res) => res.json())
+      .then(async (res) => {
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json.error || "API failed");
+        }
+
+        return json;
+      })
       .then((data) => setData(data))
-      .catch(() =>
-        setData({ total: 0, totalBookings: 0, count: {} })
-      );
+      .catch((err) => setError(err.message));
   }, []);
+
+  // 🔴 Show error clearly on screen
+  if (error) {
+    return (
+      <div style={{ padding: 20, color: "red" }}>
+        <h1>❌ Error Loading Dashboard</h1>
+        <p>{error}</p>
+      </div>
+    );
+  }
 
   if (!data) return <p>Loading...</p>;
 
@@ -24,12 +41,10 @@ export default function Dashboard() {
       <h3>Breakdown:</h3>
 
       {Object.entries(data.count || {}).length === 0 ? (
-        <p>No bookings yet</p>
+        <p>No bookings found</p>
       ) : (
         Object.entries(data.count || {}).map(([k, v]) => (
-          <p key={k}>
-            {k}: {v}
-          </p>
+          <p key={k}>{k}: {v}</p>
         ))
       )}
     </div>
