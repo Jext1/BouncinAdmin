@@ -1,52 +1,50 @@
 import { useEffect, useState } from "react";
+import {
+  Calendar,
+  dateFnsLocalizer
+} from "react-big-calendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { format, parse, startOfWeek, getDay } from "date-fns";
+import enGB from "date-fns/locale/en-GB";
+
+const locales = { "en-GB": enGB };
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales
+});
 
 export default function Dashboard() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+  const [events, setEvents] = useState([]);
 
   useEffect(() => {
     fetch("/api/bookings")
-      .then(async (res) => {
-        const json = await res.json();
+      .then((res) => res.json())
+      .then((data) => {
+        const formatted = (data.rawEvents || []).map((e) => ({
+          title: e.summary || "Booking",
+          start: new Date(e.start),
+          end: new Date(e.end)
+        }));
 
-        if (!res.ok) {
-          throw new Error(json.error || "API failed");
-        }
-
-        return json;
-      })
-      .then((data) => setData(data))
-      .catch((err) => setError(err.message));
+        setEvents(formatted);
+      });
   }, []);
 
-  // 🔴 Show error clearly on screen
-  if (error) {
-    return (
-      <div style={{ padding: 20, color: "red" }}>
-        <h1>❌ Error Loading Dashboard</h1>
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  if (!data) return <p>Loading...</p>;
-
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Bouncin Dashboard</h1>
+    <div style={{ height: "100vh", padding: 10 }}>
+      <h2>Bouncin Llanelli Calendar</h2>
 
-      <h2>Total Bookings: {data.totalBookings || 0}</h2>
-      <h2>Total Revenue: £{data.total || 0}</h2>
-
-      <h3>Breakdown:</h3>
-
-      {Object.entries(data.count || {}).length === 0 ? (
-        <p>No bookings found</p>
-      ) : (
-        Object.entries(data.count || {}).map(([k, v]) => (
-          <p key={k}>{k}: {v}</p>
-        ))
-      )}
+      <Calendar
+        localizer={localizer}
+        events={events}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height: "90vh" }}
+      />
     </div>
   );
 }
