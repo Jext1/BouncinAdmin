@@ -1,40 +1,70 @@
-import { parseBooking } from "../../lib/parser";
+import { useEffect, useState } from "react";
 
-export default async function handler(req, res) {
-  try {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    const calendarId = process.env.CALENDAR_ID;
+export default function Dashboard() {
+  const [events, setEvents] = useState([]);
+  const [error, setError] = useState(null);
 
-    if (!apiKey || !calendarId) {
-      return res.status(500).json({ error: "Missing API config" });
-    }
+  useEffect(() => {
+    fetch("/api/bookings")
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok || json.error) throw new Error(json.error);
 
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}`;
+        return json;
+      })
+      .then((data) => {
+        setEvents(data.events || []);
+      })
+      .catch((err) => setError(err.message));
+  }, []);
 
-    const response = await fetch(url);
-    const data = await response.json();
-
-    const items = data.items || [];
-
-    let total = 0;
-    let totalBookings = items.length;
-    let count = {};
-
-    items.forEach(event => {
-      const text = (event.summary || "") + " " + (event.description || "");
-
-      const parsed = parseBooking(text);
-
-      total += parsed.price || 0;
-
-      parsed.keywords.forEach(k => {
-        count[k] = (count[k] || 0) + 1;
-      });
-    });
-
-    res.json({ total, totalBookings, count });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (error) {
+    return (
+      <div style={{ padding: 20, color: "red" }}>
+        <h2>Calendar error</h2>
+        <p>{error}</p>
+      </div>
+    );
   }
+
+  if (!events) return <p>Loading...</p>;
+
+  // 🧠 group events by day
+  const grouped = {};
+
+  events.forEach((e) => {
+    const date = new Date(e.start).toDateString();
+    if (!grouped[date]) grouped[date] = [];
+    grouped[date].push(e);
+  });
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>Bouncin Calendar</h1>
+
+      {Object.keys(grouped).length === 0 && (
+        <p>No bookings found</p>
+      )}
+
+      {Object.entries(grouped).map(([date, list]) => (
+        <div key={date} style={{ marginBottom: 20 }}>
+          <h3>{date}</h3>
+
+          {list.map((e, i) => (
+            <div
+              key={i}
+              style={{
+                padding: 10,
+                border: "1px solid #ccc",
+                marginBottom: 5
+              }}
+            >
+              <b>{e.summary}</b>
+              <p>{e.description}</p>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
