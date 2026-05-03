@@ -1,50 +1,43 @@
 import { useEffect, useState } from "react";
-import {
-  Calendar,
-  dateFnsLocalizer
-} from "react-big-calendar";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import { format, parse, startOfWeek, getDay } from "date-fns";
-import enGB from "date-fns/locale/en-GB";
-
-const locales = { "en-GB": enGB };
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales
-});
 
 export default function Dashboard() {
-  const [events, setEvents] = useState([]);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetch("/api/bookings")
-      .then((res) => res.json())
-      .then((data) => {
-        const formatted = (data.rawEvents || []).map((e) => ({
-          title: e.summary || "Booking",
-          start: new Date(e.start),
-          end: new Date(e.end)
-        }));
-
-        setEvents(formatted);
-      });
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "API failed");
+        return json;
+      })
+      .then(setData)
+      .catch((err) => setError(err.message));
   }, []);
 
-  return (
-    <div style={{ height: "100vh", padding: 10 }}>
-      <h2>Bouncin Llanelli Calendar</h2>
+  if (error) {
+    return (
+      <div style={{ padding: 20, color: "red" }}>
+        <h1>Error</h1>
+        <p>{error}</p>
+      </div>
+    );
+  }
 
-      <Calendar
-        localizer={localizer}
-        events={events}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: "90vh" }}
-      />
+  if (!data) return <p>Loading...</p>;
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>Bouncin Dashboard</h1>
+
+      <h2>Total Bookings: {data.totalBookings}</h2>
+      <h2>Total Revenue: £{data.total}</h2>
+
+      <h3>Breakdown</h3>
+
+      {Object.entries(data.count || {}).map(([k, v]) => (
+        <p key={k}>{k}: {v}</p>
+      ))}
     </div>
   );
 }
