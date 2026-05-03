@@ -1,50 +1,41 @@
-export default async function handler(req, res) {
-  try {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    const calendarId = process.env.CALENDAR_ID;
+import { parseBooking } from "../../lib/parser";
 
-    if (!apiKey || !calendarId) {
-      return res.status(500).json({
-        error: "Missing API key or Calendar ID in Vercel"
-      });
-    }
+...
 
-    const now = new Date();
-    const future = new Date();
-    future.setFullYear(now.getFullYear() + 1);
+const events = (data.items || []).map(e => ({
+  summary: e.summary || "",
+  description: e.description || "",
+  start: e.start?.dateTime || e.start?.date
+}));
 
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}&timeMin=${now.toISOString()}&timeMax=${future.toISOString()}`;
+let total = 0;
+let deposits = 0;
+let count = {};
+let filtered = [];
 
-    const response = await fetch(url);
+events.forEach(e => {
+  const date = new Date(e.start);
 
-    // 🔥 DEBUG RAW RESPONSE
-    const text = await response.text();
-    console.log("RAW RESPONSE:", text);
+  // 📅 MAY ONLY
+  if (date.getMonth() !== 4) return;
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      return res.status(500).json({
-        error: "Google did not return JSON",
-        raw: text
-      });
-    }
+  const text = e.summary + " " + e.description;
+  const parsed = parseBooking(text);
 
-    const events = (data.items || []).map(e => ({
-      summary: e.summary || "No title",
-      description: e.description || "",
-      start: e.start?.dateTime || e.start?.date
-    }));
+  total += parsed.price;
+  deposits += parsed.deposit;
 
-    return res.status(200).json({
-      events,
-      count: events.length
-    });
+  parsed.keywords.forEach(k => {
+    count[k] = (count[k] || 0) + 1;
+  });
 
-  } catch (err) {
-    return res.status(500).json({
-      error: err.message
-    });
-  }
-}
+  filtered.push(e);
+});
+
+return res.status(200).json({
+  events: filtered,
+  total,
+  deposits,
+  count,
+  totalBookings: filtered.length
+});
