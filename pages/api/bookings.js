@@ -1,51 +1,19 @@
-import { parseBooking } from "../../lib/parser";
-
 export default async function handler(req, res) {
-  try {
-    // 🧪 FAKE TEST DATA (so your dashboard works)
-    const fakeEvents = [
-      {
-        summary: "Mermaid Castle",
-        description: "12.30-3 Canolfan Gwili Centre £120 £20 deposit received"
-      },
-      {
-        summary: "Lego Castle Party",
-        description: "Birthday booking £150 soft play lego building"
-      },
-      {
-        summary: "Candy Floss & Slush",
-        description: "Fun run event £80 candy floss slush blue disco"
-      },
-      {
-        summary: "Obstacle Course Hire",
-        description: "School event £200 obstacle dino fun run"
-      }
-    ];
+  const apiKey = process.env.GOOGLE_API_KEY;
+  const calendarId = process.env.CALENDAR_ID;
 
-    let total = 0;
-    let totalBookings = fakeEvents.length;
-    let count = {};
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}`;
 
-    fakeEvents.forEach((event) => {
-      const text = event.summary + " " + event.description;
+  const response = await fetch(url);
+  const data = await response.json();
 
-      const parsed = parseBooking(text);
+  const events = (data.items || []).map((event) => ({
+    summary: event.summary,
+    start: event.start?.dateTime || event.start?.date,
+    end: event.end?.dateTime || event.end?.date
+  }));
 
-      total += parsed.price || 0;
-
-      parsed.keywords.forEach((k) => {
-        count[k] = (count[k] || 0) + 1;
-      });
-    });
-
-    res.json({
-      total,
-      totalBookings,
-      count,
-      testMode: true
-    });
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  res.json({
+    rawEvents: events
+  });
 }
