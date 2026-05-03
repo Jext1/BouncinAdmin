@@ -8,30 +8,47 @@ export default function Dashboard() {
     fetch("/api/bookings")
       .then(async (res) => {
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "API failed");
+
+        if (!res.ok || json.error) {
+          throw new Error(json.error || "Calendar not found");
+        }
+
         return json;
       })
       .then(setData)
       .catch((err) => setError(err.message));
   }, []);
 
+  // 🔴 ERROR SCREEN
   if (error) {
     return (
       <div style={{ padding: 20, color: "red" }}>
-        <h1>Error</h1>
-        <p>{error}</p>
+        <h1>📅 Calendar Not Found</h1>
+        <p>We couldn’t load your bookings.</p>
+        <p><b>Reason:</b> {error}</p>
+
+        <hr />
+
+        <p>Check:</p>
+        <ul>
+          <li>API key is correct</li>
+          <li>Calendar ID is correct</li>
+          <li>Google Calendar API is enabled</li>
+        </ul>
       </div>
     );
   }
 
-  if (!data) return <p>Loading...</p>;
+  // ⏳ LOADING
+  if (!data) return <p>Loading calendar...</p>;
 
+  // ✅ NORMAL VIEW
   return (
     <div style={{ padding: 20 }}>
       <h1>Bouncin Dashboard</h1>
 
-      <h2>Total Bookings: {data.totalBookings}</h2>
-      <h2>Total Revenue: £{data.total}</h2>
+      <h2>Total Bookings: {data.totalBookings || 0}</h2>
+      <h2>Total Revenue: £{data.total || 0}</h2>
 
       <h3>Breakdown</h3>
 
