@@ -2,42 +2,50 @@ import { parseBooking } from "../../lib/parser";
 
 export default async function handler(req, res) {
   try {
-    const apiKey = process.env.GOOGLE_API_KEY; // ✅ safer
-    const calendarId = process.env.CALENDAR_ID;
-
-    if (!apiKey || !calendarId) {
-      return res.status(500).json({ error: "Missing env variables" });
-    }
-
-    const url =
-      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}`;
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    const items = data.items || [];
+    // 🧪 FAKE TEST DATA (so your dashboard works)
+    const fakeEvents = [
+      {
+        summary: "Mermaid Castle",
+        description: "12.30-3 Canolfan Gwili Centre £120 £20 deposit received"
+      },
+      {
+        summary: "Lego Castle Party",
+        description: "Birthday booking £150 soft play lego building"
+      },
+      {
+        summary: "Candy Floss & Slush",
+        description: "Fun run event £80 candy floss slush blue disco"
+      },
+      {
+        summary: "Obstacle Course Hire",
+        description: "School event £200 obstacle dino fun run"
+      }
+    ];
 
     let total = 0;
-    let totalBookings = 0;
+    let totalBookings = fakeEvents.length;
     let count = {};
 
-    items.forEach((event) => {
-      const text =
-        (event.summary || "") + " " + (event.description || "");
+    fakeEvents.forEach((event) => {
+      const text = event.summary + " " + event.description;
 
       const parsed = parseBooking(text);
 
       total += parsed.price || 0;
-      totalBookings++;
 
-      (parsed.keywords || []).forEach((k) => {
+      parsed.keywords.forEach((k) => {
         count[k] = (count[k] || 0) + 1;
       });
     });
 
-    return res.status(200).json({ total, totalBookings, count });
+    res.json({
+      total,
+      totalBookings,
+      count,
+      testMode: true
+    });
 
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 }
