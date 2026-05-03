@@ -2,27 +2,26 @@ import { parseBooking } from "../../lib/parser";
 
 export default async function handler(req, res) {
   try {
-    // 🔴 YOUR API KEY GOES HERE
-    const apiKey = "AIzaSyCQiICbQrKFRbr9c80_-7XNlfwhScpqYO4";
+    const apiKey = process.env.GOOGLE_API_KEY; // ✅ safer
+    const calendarId = process.env.CALENDAR_ID;
 
-    const calendarId = "primary";
+    if (!apiKey || !calendarId) {
+      return res.status(500).json({ error: "Missing env variables" });
+    }
 
     const url =
       `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?key=${apiKey}`;
 
     const response = await fetch(url);
-
-    if (!response.ok) {
-      return res.status(500).json({ error: "Failed to fetch calendar events" });
-    }
-
     const data = await response.json();
+
+    const items = data.items || [];
 
     let total = 0;
     let totalBookings = 0;
     let count = {};
 
-    (data.items || []).forEach((event) => {
+    items.forEach((event) => {
       const text =
         (event.summary || "") + " " + (event.description || "");
 
@@ -36,15 +35,9 @@ export default async function handler(req, res) {
       });
     });
 
-    return res.status(200).json({
-      total,
-      totalBookings,
-      count,
-    });
+    return res.status(200).json({ total, totalBookings, count });
 
   } catch (error) {
-    return res.status(500).json({
-      error: error.message,
-    });
+    return res.status(500).json({ error: error.message });
   }
 }
